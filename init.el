@@ -69,9 +69,6 @@ Commentary:
   (setq custom-file (locate-user-emacs-file "custom.el"))
   (load custom-file :no-error-if-file-is-missing)
 
-	(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
-	(load custom-file 'noerror)
-
   (setq backup-directory-alist '(("." . "~/.emacs.d/backup")))
   (setq backup-by-copying-when-linked t)
   (setq backup-by-copying             t) ; Backup by copying rather renaming
