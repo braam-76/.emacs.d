@@ -1,5 +1,5 @@
-package --- Summary -*- lexical-binding: t; -*-
-Commentary:
+;;; package --- Summary -*- lexical-binding: t; -*-
+;;; Commentary:
 ;;; My Emacs config
 
 ;;; Code:
