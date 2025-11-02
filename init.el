@@ -22,7 +22,10 @@
       (eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
 
-(straight-use-package 'use-package)
+(use-package straight
+	:custom
+	(straight-built-in-pseudo-packages '(emacs project))
+	(straight-use-package 'use-package))
 
 ;;; fonts
 (set-face-attribute 'font-lock-comment-face nil
@@ -92,10 +95,10 @@
 	:straight t
   :config
   (general-emacs-define-key 'global :prefix "C-c"
-   "." '(find-file :wk "Find file")
-   "TAB" '(comment-line :wk "Comment lines")
-   "t" '(eat :wk "Eat terminal")
-	 ))
+														"." '(find-file :wk "Find file")
+														"TAB" '(comment-line :wk "Comment lines")
+														"t" '(eat :wk "Eat terminal")
+														))
 
 (use-package multiple-cursors
 	:straight t
@@ -114,14 +117,20 @@
 (use-package eziam-themes :straight t)
 (use-package goose-theme :straight t)
 (use-package badger-theme :straight t)
+(use-package almost-mono-themes	:straight t)
+(use-package constant-theme :straight t)
 
+(load-theme 'goose t)
 
-(use-package auto-dark
-	:straight t
-  :custom
-  (auto-dark-themes '((badger) (goose)))
-  (auto-dark-polling-interval-seconds 5)
-  :init (auto-dark-mode))
+;; (set-frame-parameter nil 'alpha-background 85)
+;; (add-to-list 'default-frame-alist '(alpha-background . 85))
+
+;; (use-package auto-dark
+;; 	:straight t
+;;   :custom
+;;   (auto-dark-themes '((badger) (goose)))
+;;   (auto-dark-polling-interval-seconds 5)
+;;   :init (auto-dark-mode))
 
 ;;; status line
 (use-package doom-modeline
@@ -135,11 +144,32 @@
 	:straight t
   :if (display-graphic-p))
 
+(use-package dired-sidebar
+	:straight t
+	:bind (("C-x C-n" . dired-sidebar-toggle-sidebar))
+	:commands (dired-sidebar-toggle-sidebar)
+	:init
+	(add-hook 'dired-sidebar-mode-hook
+            (lambda ()
+              (unless (file-remote-p default-directory)
+                (auto-revert-mode))))
+  :config
+  (push 'toggle-window-split dired-sidebar-toggle-hidden-commands)
+  (push 'rotate-windows dired-sidebar-toggle-hidden-commands)
+
+  (setq dired-sidebar-subtree-line-prefix "__")
+  (setq dired-sidebar-use-term-integration t)
+  (setq dired-sidebar-use-custom-font t)
+)
+
 ;;; Use $PATH from shell to find lsp's and any other programs
 (use-package exec-path-from-shell
 	:straight t
   :init
   (exec-path-from-shell-initialize))
+
+(use-package projectile
+	:straight t)
 
 ;;; eglot
 (use-package eglot
@@ -149,6 +179,8 @@
 	(java-mode . eglot-ensure)
 	(js-ts-mode . eglot-ensure)
 	(tsx-ts-mode . eglot-ensure)
+	(typescript-mode . eglot-ensure)
+	(cmake-ts-mode . eglot-ensure)
   (eglot-events-buffer-size 0)
   (eglot-autoshutdown t)
   (eglot-report-progress nil))
@@ -238,7 +270,7 @@
   ;;(add-hook 'completion-at-point-functions #'cape-abbrev) ;; Complete abbreviation
   ;;(add-hook 'completion-at-point-functions #'cape-history) ;; Complete from Eshell, Comint or minibuffer history
   ;;(add-hook 'completion-at-point-functions #'cape-line) ;; Complete entire line from current buffer
-  ;;(add-hook 'completion-at-point-functions #'cape-elisp-symbol) ;; Complete Elisp symbol
+  (add-hook 'completion-at-point-functions #'cape-elisp-symbol) ;; Complete Elisp symbol
   ;;(add-hook 'completion-at-point-functions #'cape-tex) ;; Complete Unicode char from TeX command, e.g. \hbar
   ;;(add-hook 'completion-at-point-functions #'cape-sgml) ;; Complete Unicode char from SGML entity, e.g., &alpha
   ;;(add-hook 'completion-at-point-functions #'cape-rfc1345) ;; Complete Unicode char using RFC 1345 mnemonics
@@ -282,13 +314,79 @@
   :hook
   (embark-collect-mode . consult-preview-at-point-mode))
 
-(use-package sly :straight t)
-
-(use-package geiser-chez :straight t)
-(use-package geiser 
+;;; REPL's and other Lisp stuff
+(use-package paredit
 	:straight t
-	:init
-	(setq geizer-chez-binary "/usr/bin/scheme"))
+	:hook
+	(enable-paredit-mode . emacs-lisp-mode)
+	(enable-paredit-mode . eval-expression-minibuffer-setup)
+	(enable-paredit-mode . ielm-mode)
+	(enable-paredit-mode . lisp-mode)
+	(enable-paredit-mode . lisp-interaction-mode)
+	(enable-paredit-mode . scheme-mode))
+
+(use-package sly :straight t) ; Common Lisp
+(use-package geiser-guile ; Scheme Lisp
+  :straight t)
+
+(use-package ellama
+	:straight t
+	:bind ("C-c e" . ellama)
+ :init
+  ;; setup key bindings
+  ;; (setopt ellama-keymap-prefix "C-c e")
+  ;; language you want ellama to translate to
+  (setopt ellama-language "English")
+  ;; could be llm-openai for example
+  (require 'llm-ollama)
+  (setopt ellama-provider
+  	  (make-llm-ollama
+  	   ;; this model should be pulled to use it
+  	   ;; value should be the same as you print in terminal during pull
+  	   :chat-model "llama3.1:8b"
+  	   :embedding-model "nomic-embed-text:latest"
+  	   :default-chat-non-standard-params '(("num_ctx" . 8192))))
+  (setopt ellama-summarization-provider
+  	  (make-llm-ollama
+  	   :chat-model "llama3.1:8b"
+  	   :embedding-model "nomic-embed-text:latest"
+  	   :default-chat-non-standard-params '(("num_ctx" . 32768))))
+  (setopt ellama-coding-provider
+  	  (make-llm-ollama
+  	   :chat-model "qwen2.5-coder:1.5b-base"
+  	   :embedding-model "nomic-embed-text:latest"
+  	   :default-chat-non-standard-params '(("num_ctx" . 32768))))
+  ;; Naming new sessions with llm
+  (setopt ellama-naming-provider
+  	  (make-llm-ollama
+  	   :chat-model "llama3.1:8b"
+  	   :embedding-model "nomic-embed-text"
+  	   :default-chat-non-standard-params '(("stop" . ("\n")))))
+  (setopt ellama-naming-scheme 'ellama-generate-name-by-llm)
+  ;; Translation llm provider
+  (setopt ellama-translation-provider
+  	  (make-llm-ollama
+  	   :chat-model "llama3.1:8b"
+  	   :embedding-model "nomic-embed-text:latest"
+  	   :default-chat-non-standard-params
+  	   '(("num_ctx" . 32768))))
+  (setopt ellama-extraction-provider (make-llm-ollama
+  				      :chat-model "qwen2.5-coder:1.5b-base"
+  				      :embedding-model "nomic-embed-text:latest"
+  				      :default-chat-non-standard-params
+  				      '(("num_ctx" . 32768))))
+  ;; customize display buffer behaviour
+  ;; see ~(info "(elisp) Buffer Display Action Functions")~
+  (setopt ellama-chat-display-action-function #'display-buffer-full-frame)
+  (setopt ellama-instant-display-action-function #'display-buffer-at-bottom)
+  :config
+  ;; show ellama context in header line in all buffers
+  (ellama-context-header-line-global-mode +1)
+  ;; show ellama session id in header line in all buffers
+  (ellama-session-header-line-global-mode +1)
+  ;; handle scrolling events
+  (advice-add 'pixel-scroll-precision :before #'ellama-disable-scroll)
+  (advice-add 'end-of-buffer :after #'ellama-enable-scroll))
 
 (provide 'init)
 ;;; init.el ends here
